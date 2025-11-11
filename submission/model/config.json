@@ -1,0 +1,29 @@
+{
+  "seed": 42,
+  "num_classes": 100,
+  "model_name": "convnext_base_in22ft1k",
+  "pretrained": true,
+  "image_size": 600,
+  "batch_size": 32,
+  "num_workers": 4,
+  "num_epochs": 20,
+  "learning_rate": 0.0005,
+  "weight_decay": 0.0001,
+  "label_smoothing": 0.1,
+  "grad_accumulation": 1,
+  "amp": true,
+  "drop_rate": 0.0,
+  "drop_path_rate": 0.2,
+  "scheduler": {
+    "type": "cosine",
+    "warmup_epochs": 2,
+    "warmup_start_factor": 0.2,
+    "min_lr": 1e-6
+  },
+  "train_csv": "data/train.csv",
+  "train_root": "data/train_images",
+  "val_csv": "data/val.csv",
+  "val_root": "data/val_images",
+  "class_map": "data/class_map.json"
+}
+
