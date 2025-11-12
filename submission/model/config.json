@@ -14,6 +14,7 @@
   "amp": true,
   "drop_rate": 0.0,
   "drop_path_rate": 0.2,
+  "label_column": "category_id",
   "scheduler": {
     "type": "cosine",
     "warmup_epochs": 2,

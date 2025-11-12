@@ -4,7 +4,7 @@ import argparse
 import json
 import time
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import sys
 
@@ -14,7 +14,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import torch
 import torch.nn as nn
-from torch.cuda import amp
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
@@ -24,11 +23,31 @@ from model.utils import (
     FlowerDataset,
     build_dataloader,
     build_transforms,
+    build_label_mapping_from_csvs,
     inverse_class_mapping,
     load_class_mapping,
     save_metrics,
     seed_everything,
 )
+
+
+try:
+    from torch import amp as torch_amp
+
+    def autocast(enabled: bool):
+        return torch_amp.autocast(device_type="cuda", enabled=enabled)
+
+    def create_grad_scaler(enabled: bool):
+        return torch_amp.GradScaler(device_type="cuda", enabled=enabled)
+
+except (ImportError, AttributeError, TypeError):
+    from torch.cuda import amp as cuda_amp  # type: ignore
+
+    def autocast(enabled: bool):
+        return cuda_amp.autocast(enabled=enabled)
+
+    def create_grad_scaler(enabled: bool):
+        return cuda_amp.GradScaler(enabled=enabled)
 
 
 def parse_args() -> argparse.Namespace:
@@ -91,7 +110,7 @@ def train_one_epoch(
         images = batch["image"].to(device, non_blocking=True)
         targets = batch["label"].to(device, non_blocking=True)
 
-        with amp.autocast(enabled=use_amp):
+        with autocast(use_amp):
             logits = model(images)
             loss = criterion(logits, targets) / accumulation_steps
 
@@ -158,11 +177,33 @@ def main() -> None:
     device = torch.device("cuda")
     train_transform, val_transform, _ = build_transforms(config.get("image_size", 600))
 
-    class_map_path = config.get("class_map")
-    class_map = load_class_mapping(Path(class_map_path)) if class_map_path else None
+    label_column = config.get("label_column", "category_id")
+    train_csv_path = Path(config["train_csv"])
+    val_csv_path = Path(config["val_csv"])
+
+    class_map: Optional[Dict[str, int]] = None
+    class_map_path_setting = config.get("class_map")
+    if class_map_path_setting:
+        class_map_path = Path(class_map_path_setting)
+        class_map = load_class_mapping(class_map_path)
+    else:
+        mapping_sources = [train_csv_path]
+        if val_csv_path.exists():
+            mapping_sources.append(val_csv_path)
+        class_map = build_label_mapping_from_csvs(mapping_sources, label_column=label_column)
+        class_map_path = output_dir / "label_to_index.json"
+        class_map_path.write_text(json.dumps(class_map, indent=2), encoding="utf-8")
+
+    if class_map is None:
+        raise RuntimeError("Failed to construct class mapping from provided configuration.")
+
+    config["class_map"] = str(class_map_path)
+
+    if class_map:
+        config["num_classes"] = len(class_map)
 
     train_dataset = FlowerDataset(
-        csv_file=Path(config["train_csv"]),
+        csv_file=train_csv_path,
         image_root=Path(config["train_root"]),
         transform=train_transform,
         label_encoder=class_map,
@@ -170,7 +211,7 @@ def main() -> None:
     )
 
     val_dataset = FlowerDataset(
-        csv_file=Path(config["val_csv"]),
+        csv_file=val_csv_path,
         image_root=Path(config["val_root"]),
         transform=val_transform,
         label_encoder=class_map,
@@ -199,7 +240,7 @@ def main() -> None:
     scheduler, warmup_epochs = get_schedulers(optimizer, config, epochs)
     criterion = build_criterion(config.get("label_smoothing", 0.1)).to(device)
 
-    scaler = amp.GradScaler(enabled=config.get("amp", True))
+    scaler = create_grad_scaler(enabled=config.get("amp", True))
 
     best_acc = 0.0
     best_epoch = 0
@@ -244,7 +285,8 @@ def main() -> None:
             )
             if class_map:
                 inv_map = inverse_class_mapping(class_map)
-                (output_dir / "class_mapping.json").write_text(json.dumps(inv_map, indent=2), encoding="utf-8")
+                (output_dir / "index_to_label.json").write_text(json.dumps(inv_map, indent=2), encoding="utf-8")
+                (output_dir / "label_to_index.json").write_text(json.dumps(class_map, indent=2), encoding="utf-8")
 
             save_metrics(val_targets, val_preds, val_probs, metrics_path)
 

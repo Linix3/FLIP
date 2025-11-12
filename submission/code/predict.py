@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import torch
@@ -75,7 +75,16 @@ def main() -> None:
     load_checkpoint(model, args.checkpoint, device=device, strict=False)
     model.eval()
 
-    class_map_path = Path(config["class_map"]) if config.get("class_map") else None
+    class_map_path: Optional[Path] = None
+    if config.get("class_map"):
+        candidate = Path(config["class_map"])
+        if candidate.exists():
+            class_map_path = candidate
+
+    default_map_path = Path("model/label_to_index.json")
+    if class_map_path is None and default_map_path.exists():
+        class_map_path = default_map_path
+
     label_to_id = load_class_mapping(class_map_path) if class_map_path else None
     id_to_label = inverse_class_mapping(label_to_id) if label_to_id else None
 
@@ -93,7 +102,12 @@ def main() -> None:
         confidences.extend(conf.cpu().tolist())
 
         if id_to_label:
-            predictions.extend([id_to_label[int(idx)] for idx in pred.cpu().tolist()])
+            for idx_val in pred.cpu().tolist():
+                label_value = id_to_label[int(idx_val)]
+                try:
+                    predictions.append(int(label_value))
+                except (ValueError, TypeError):
+                    predictions.append(label_value)
         else:
             predictions.extend(pred.cpu().tolist())
 

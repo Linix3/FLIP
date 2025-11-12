@@ -5,7 +5,7 @@ import math
 import random
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -66,7 +66,16 @@ class FlowerDataset(Dataset):
                 raise ValueError("CSV must contain 'label', 'class_id', or 'category_id' column when has_labels=True.")
 
             if label_encoder:
-                self.labels = [self.label_encoder[label] for label in labels]
+                mapped_labels: List[int] = []
+                for label in labels:
+                    str_label = str(label)
+                    if str_label in self.label_encoder:
+                        mapped_labels.append(self.label_encoder[str_label])
+                    elif label in self.label_encoder:
+                        mapped_labels.append(self.label_encoder[label])
+                    else:
+                        raise KeyError(f"Label {label} not found in label encoder.")
+                self.labels = mapped_labels
             else:
                 self.labels = labels.astype(int).tolist()
         else:
@@ -196,12 +205,40 @@ def load_class_mapping(class_map_path: Optional[Path]) -> Optional[Dict[str, int
     if not class_map_path.exists():
         raise FileNotFoundError(f"Class mapping file not found: {class_map_path}")
     with open(class_map_path, "r", encoding="utf-8") as f:
-        mapping = json.load(f)
-    return mapping
+        raw_mapping = json.load(f)
+    return {str(k): int(v) for k, v in raw_mapping.items()}
 
 
 def inverse_class_mapping(mapping: Dict[str, int]) -> Dict[int, str]:
-    return {idx: name for name, idx in mapping.items()}
+    return {int(idx): str(name) for name, idx in mapping.items()}
+
+
+def build_label_mapping_from_csvs(
+    csv_paths: Iterable[Path],
+    label_column: str = "category_id",
+) -> Dict[str, int]:
+    labels: Set[str] = set()
+    for csv_path in csv_paths:
+        if not csv_path.exists():
+            continue
+        frame = pd.read_csv(csv_path)
+        if label_column not in frame.columns:
+            continue
+        column_values = frame[label_column].dropna().astype(str).tolist()
+        labels.update(column_values)
+
+    if not labels:
+        raise ValueError(f"No labels found in provided CSV files for column '{label_column}'.")
+
+    def sort_key(value: str) -> Tuple[int, float, str]:
+        try:
+            numeric = float(value)
+            return (0, numeric, value)
+        except ValueError:
+            return (1, float("inf"), value)
+
+    sorted_labels = sorted(labels, key=sort_key)
+    return {label: idx for idx, label in enumerate(sorted_labels)}
 
 
 def cosine_scheduler(
