@@ -6,6 +6,12 @@ import time
 from pathlib import Path
 from typing import Dict, Tuple
 
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 import torch
 import torch.nn as nn
 from torch.cuda import amp

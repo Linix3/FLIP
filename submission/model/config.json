@@ -20,10 +20,10 @@
     "warmup_start_factor": 0.2,
     "min_lr": 1e-6
   },
-  "train_csv": "data/train.csv",
-  "train_root": "data/train_images",
-  "val_csv": "data/val.csv",
-  "val_root": "data/val_images",
-  "class_map": "data/class_map.json"
+  "train_csv": "data/labels/train_labels.csv",
+  "train_root": "data/images/train",
+  "val_csv": "data/labels/validation_labels.csv",
+  "val_root": "data/images/train",
+  "class_map": null
 }
 

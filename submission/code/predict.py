@@ -10,6 +10,12 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from PIL import Image
 
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
+
 from model.model import build_model, load_checkpoint
 from model.utils import build_transforms, inverse_class_mapping, load_class_mapping
 
@@ -35,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate predictions for flower dataset.")
     parser.add_argument("--config", type=Path, default=Path("model/config.json"), help="Path to config file.")
     parser.add_argument("--checkpoint", type=Path, default=Path("model/best_model.pth"), help="Trained checkpoint path.")
-    parser.add_argument("--image-dir", type=Path, default=Path("data/test_images"), help="Directory containing test images.")
+    parser.add_argument("--image-dir", type=Path, default=Path("data/images/test"), help="Directory containing test images.")
     parser.add_argument("--output", type=Path, default=Path("results/submission.csv"), help="Output CSV file path.")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for inference.")
     return parser.parse_args()

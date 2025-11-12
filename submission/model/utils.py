@@ -50,16 +50,20 @@ class FlowerDataset(Dataset):
             self.paths = self.annotations["image_path"].tolist()
         elif "img_name" in self.annotations.columns:
             self.paths = self.annotations["img_name"].tolist()
+        elif "filename" in self.annotations.columns:
+            self.paths = self.annotations["filename"].tolist()
         else:
-            raise ValueError("CSV must contain 'image_path' or 'img_name' column.")
+            raise ValueError("CSV must contain 'image_path', 'img_name', or 'filename' column.")
 
         if has_labels:
             if "label" in self.annotations.columns:
                 labels = self.annotations["label"]
             elif "class_id" in self.annotations.columns:
                 labels = self.annotations["class_id"]
+            elif "category_id" in self.annotations.columns:
+                labels = self.annotations["category_id"]
             else:
-                raise ValueError("CSV must contain 'label' or 'class_id' column when has_labels=True.")
+                raise ValueError("CSV must contain 'label', 'class_id', or 'category_id' column when has_labels=True.")
 
             if label_encoder:
                 self.labels = [self.label_encoder[label] for label in labels]
