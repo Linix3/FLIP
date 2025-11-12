@@ -24,7 +24,7 @@
   "train_csv": "data/labels/train_labels.csv",
   "train_root": "data/images/train",
   "val_csv": "data/labels/validation_labels.csv",
-  "val_root": "data/images/train",
+  "val_root": "data/images/test",
   "class_map": null
 }
 
