@@ -125,8 +125,8 @@ def main():
     os.makedirs(args.save_dir, exist_ok=True)
 
     # 数据路径
-    train_csv = os.path.join(args.data_dir, 'test_labels.csv')
-    test_csv = os.path.join(args.data_dir, 'test_labels.csv')
+    train_csv = os.path.join(args.data_dir, 'train_labels.csv')
+    test_csv = os.path.join(args.data_dir, 'train_labels.csv')
     train_img_dir = os.path.join(args.data_dir, 'images', 'train')
     test_img_dir = os.path.join(args.data_dir, 'images', 'test')
 
