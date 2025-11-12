@@ -35,10 +35,10 @@ try:
     from torch import amp as torch_amp
 
     def autocast(enabled: bool):
-        return torch_amp.autocast(device_type="cuda", enabled=enabled)
+        return torch_amp.autocast("cuda", enabled=enabled)
 
     def create_grad_scaler(enabled: bool):
-        return torch_amp.GradScaler(device_type="cuda", enabled=enabled)
+        return torch_amp.GradScaler("cuda", enabled=enabled)
 
 except (ImportError, AttributeError, TypeError):
     from torch.cuda import amp as cuda_amp  # type: ignore
